@@ -19,7 +19,8 @@
 use runtime_primitives::traits::{Block as BlockT, Header as HeaderT};
 use service::Role as RoleFlags;
 
-pub use self::generic::{BlockAnnounce, RemoteCallRequest, ConsensusVote, SignedConsensusVote, FromBlock, Body};
+pub use self::generic::{BlockAnnounce, RemoteCallRequest, RemoteReadRequest,
+	ConsensusVote, SignedConsensusVote, FromBlock, Body};
 
 pub type RequestId = u64;
 
@@ -166,6 +167,15 @@ pub struct RemoteCallResponse {
 	pub proof: Vec<Vec<u8>>,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+/// Remote read response.
+pub struct RemoteReadResponse {
+	/// Id of a request this response was made for.
+	pub id: RequestId,
+	/// Read proof.
+	pub proof: Vec<Vec<u8>>,
+}
+
 /// Generic types.
 pub mod generic {
 	use primitives::AuthorityId;
@@ -173,7 +183,8 @@ pub mod generic {
 	use runtime_primitives::bft::Justification;
 	use ed25519;
 
-	use super::{Role, BlockAttribute, RemoteCallResponse, RequestId, Transactions, Direction};
+	use super::{Role, BlockAttribute, RemoteCallResponse, RemoteReadResponse,
+		RequestId, Transactions, Direction};
 
 	use primitives::bytes;
 
@@ -319,6 +330,10 @@ pub mod generic {
 		RemoteCallRequest(RemoteCallRequest<Hash>),
 		/// Remote method call response.
 		RemoteCallResponse(RemoteCallResponse),
+		/// Remote storage read request.
+		RemoteReadRequest(RemoteReadRequest<Hash>),
+		/// Remote storage read response.
+		RemoteReadResponse(RemoteReadResponse),
 	}
 
 	/// Status sent on connection.
@@ -373,6 +388,17 @@ pub mod generic {
 	pub struct BlockAnnounce<H> {
 		/// New block header.
 		pub header: H,
+	}
+
+	#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+	/// Remote storage read request.
+	pub struct RemoteReadRequest<H> {
+		/// Unique request id.
+		pub id: RequestId,
+		/// Block at which to perform call.
+		pub block: H,
+		/// Storage key.
+		pub key: Vec<u8>,
 	}
 
 	#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]

@@ -33,6 +33,7 @@ extern crate substrate_runtime_support as runtime_support;
 extern crate substrate_runtime_primitives as runtime_primitives;
 extern crate substrate_bft;
 extern crate substrate_codec as codec;
+extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
 extern crate futures;
@@ -68,4 +69,4 @@ pub use network::{NonReservedPeerMode, NetworkConfiguration, ConnectionFilter, C
 pub use message::{generic as generic_message, BftMessage, LocalizedBftMessage, ConsensusVote, SignedConsensusVote, SignedConsensusMessage, SignedConsensusProposal};
 pub use error::Error;
 pub use config::{Role, ProtocolConfig};
-pub use on_demand::{OnDemand, OnDemandService, RemoteCallResponse};
+pub use on_demand::{OnDemand, OnDemandService, RemoteResponse};

@@ -224,6 +224,11 @@ impl<B, E, Block: BlockT> Client<B, E, Block> where
 		&self.executor
 	}
 
+	/// Reads storage value at a given block + key, returning read proof.
+	pub fn read_proof(&self, id: &BlockId<Block>, key: &[u8]) -> error::Result<Vec<Vec<u8>>> {
+		self.state_at(id).and_then(|state| state_machine::prove_read(state, key).map(|(_, proof)| proof).map_err(Into::into))
+	}
+
 	/// Execute a call to a contract on top of state in a block of given hash
 	/// AND returning execution proof.
 	///

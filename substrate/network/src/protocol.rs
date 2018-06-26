@@ -19,6 +19,7 @@ use std::{mem, cmp};
 use std::sync::Arc;
 use std::time;
 use parking_lot::{RwLock, Mutex};
+use rustc_hex::ToHex;
 use serde_json;
 use runtime_primitives::traits::{Block as BlockT, Header as HeaderT, Hashing, HashingFor};
 use runtime_primitives::generic::BlockId;
@@ -183,6 +184,8 @@ impl<B: BlockT> Protocol<B> where
 			GenericMessage::Transactions(m) => self.on_transactions(io, peer_id, m),
 			GenericMessage::RemoteCallRequest(request) => self.on_remote_call_request(io, peer_id, request),
 			GenericMessage::RemoteCallResponse(response) => self.on_remote_call_response(io, peer_id, response),
+			GenericMessage::RemoteReadRequest(request) => self.on_remote_read_request(io, peer_id, request),
+			GenericMessage::RemoteReadResponse(response) => self.on_remote_read_response(io, peer_id, response),
 		}
 	}
 
@@ -530,6 +533,27 @@ impl<B: BlockT> Protocol<B> where
 	fn on_remote_call_response(&self, io: &mut SyncIo, peer_id: PeerId, response: message::RemoteCallResponse) {
 		trace!(target: "sync", "Remote call response {} from {}", response.id, peer_id);
 		self.on_demand.as_ref().map(|s| s.on_remote_call_response(io, peer_id, response));
+	}
+
+	fn on_remote_read_request(&self, io: &mut SyncIo, peer_id: PeerId, request: message::RemoteReadRequest<B::Hash>) {
+		trace!(target: "sync", "Remote read request {} from {} ({} at {})", request.id, peer_id, request.key.to_hex(), request.block);
+		let proof = match self.chain.read_proof(&request.block, &request.key) {
+			Ok(proof) => proof,
+			Err(error) => {
+				trace!(target: "sync", "Remote read request {} from {} ({} at {}) failed with: {}",
+					request.id, peer_id, request.key.to_hex(), request.block, error);
+				Default::default()
+			},
+		};
+
+		self.send_message(io, peer_id, GenericMessage::RemoteReadResponse(message::RemoteReadResponse {
+			id: request.id, proof,
+		}));
+	}
+
+	fn on_remote_read_response(&self, io: &mut SyncIo, peer_id: PeerId, response: message::RemoteReadResponse) {
+		trace!(target: "sync", "Remote read response {} from {}", response.id, peer_id);
+		self.on_demand.as_ref().map(|s| s.on_remote_read_response(io, peer_id, response));
 	}
 
 	pub fn chain(&self) -> &Client<B> {
