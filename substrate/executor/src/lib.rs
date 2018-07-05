@@ -71,8 +71,17 @@ pub use state_machine::Externalities;
 pub use runtime_version::RuntimeVersion;
 pub use codec::Slicable;
 
+
+
 /// Provides runtime information.
 pub trait RuntimeInfo {
 	/// Native runtime information if any.
 	const NATIVE_VERSION: Option<RuntimeVersion>;
+
+	/// Extract RuntimeVersion of given :code block
+	fn runtime_version<E: Externalities> (
+		&self,
+		ext: &mut E,
+		code: &[u8]
+	) -> Option<RuntimeVersion>;
 }
