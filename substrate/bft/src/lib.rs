@@ -61,7 +61,8 @@ use codec::Encode;
 use ed25519::LocalizedSignature;
 use runtime_primitives::generic::BlockId;
 use runtime_primitives::traits::{Block, Header};
-use runtime_primitives::bft::{Message as PrimitiveMessage, Action as PrimitiveAction, Justification as PrimitiveJustification};
+use runtime_primitives::bft::{Message as PrimitiveMessage, Action as PrimitiveAction,
+		Justification as PrimitiveJustification};
 use primitives::AuthorityId;
 
 use futures::{task, Async, Stream, Sink, Future, IntoFuture};
@@ -128,7 +129,8 @@ impl<H> Into<PrimitiveJustification<H>> for UncheckedJustification<H> {
 		PrimitiveJustification {
 			round_number: self.0.round_number as u32,
 			hash: self.0.digest,
-			signatures: self.0.signatures.into_iter().map(|s| (s.signer.into(), s.signature)).collect(),
+			signatures: self.0.signatures
+				.into_iter().map(|s| (s.signer.into(), s.signature)).collect(),
 		}
 	}
 }
@@ -137,7 +139,10 @@ impl<H> Into<PrimitiveJustification<H>> for UncheckedJustification<H> {
 pub type Committed<B> = rhododendron::Committed<B, <B as Block>::Hash, LocalizedSignature>;
 
 /// Communication between BFT participants.
-pub type Communication<B> = rhododendron::Communication<B, <B as Block>::Hash, AuthorityId, LocalizedSignature>;
+pub type Communication<B> = rhododendron::Communication<B,
+														<B as Block>::Hash,
+														AuthorityId,
+														LocalizedSignature>;
 
 /// Misbehavior observed from BFT participants.
 pub type Misbehavior<H> = rhododendron::Misbehavior<H, LocalizedSignature>;
@@ -156,7 +161,10 @@ pub trait Environment<B: Block> {
 	/// Initialize the proposal logic on top of a specific header.
 	/// Produces the proposer and message streams for this instance of BFT agreement.
 	// TODO: provide state context explicitly?
-	fn init(&self, parent_header: &B::Header, authorities: &[AuthorityId], sign_with: Arc<ed25519::Pair>)
+	fn init(&self,
+			parent_header: &B::Header,
+			authorities: &[AuthorityId],
+			sign_with: Arc<ed25519::Pair>)
 		-> Result<(Self::Proposer, Self::Input, Self::Output), Self::Error>;
 }
 
@@ -483,9 +491,11 @@ pub fn bft_threshold(n: usize) -> usize {
 	n - max_faulty_of(n)
 }
 
-fn check_justification_signed_message<H>(authorities: &[AuthorityId], message: &[u8], just: UncheckedJustification<H>)
-	-> Result<Justification<H>, UncheckedJustification<H>>
-{
+fn check_justification_signed_message<H>(
+	authorities: &[AuthorityId],
+	message: &[u8],
+	just: UncheckedJustification<H>)
+-> Result<Justification<H>, UncheckedJustification<H>> {
 	// TODO: return additional error information.
 	just.0.check(authorities.len() - max_faulty_of(authorities.len()), |_, _, sig| {
 		let auth_id = sig.signer.clone().into();
@@ -503,9 +513,11 @@ fn check_justification_signed_message<H>(authorities: &[AuthorityId], message: &
 /// Provide all valid authorities.
 ///
 /// On failure, returns the justification back.
-pub fn check_justification<B: Block>(authorities: &[AuthorityId], parent: B::Hash, just: UncheckedJustification<B::Hash>)
-	-> Result<Justification<B::Hash>, UncheckedJustification<B::Hash>>
-{
+pub fn check_justification<B: Block>(
+	authorities: &[AuthorityId],
+	parent: B::Hash,
+	just: UncheckedJustification<B::Hash>)
+-> Result<Justification<B::Hash>, UncheckedJustification<B::Hash>> {
 	let message = Encode::encode(&PrimitiveMessage::<B, _> {
 		parent,
 		action: PrimitiveAction::Commit(just.0.round_number as u32, just.0.digest.clone()),
@@ -518,9 +530,11 @@ pub fn check_justification<B: Block>(authorities: &[AuthorityId], parent: B::Has
 /// Provide all valid authorities.
 ///
 /// On failure, returns the justification back.
-pub fn check_prepare_justification<B: Block>(authorities: &[AuthorityId], parent: B::Hash, just: UncheckedJustification<B::Hash>)
-	-> Result<PrepareJustification<B::Hash>, UncheckedJustification<B::Hash>>
-{
+pub fn check_prepare_justification<B: Block>(
+	authorities: &[AuthorityId],
+	parent: B::Hash,
+	just: UncheckedJustification<B::Hash>)
+-> Result<PrepareJustification<B::Hash>, UncheckedJustification<B::Hash>> {
 	let message = Encode::encode(&PrimitiveMessage::<B, _> {
 		parent,
 		action: PrimitiveAction::Prepare(just.0.round_number as u32, just.0.digest.clone()),
@@ -535,14 +549,15 @@ pub fn check_proposal<B: Block + Clone>(
 	authorities: &[AuthorityId],
 	parent_hash: &B::Hash,
 	propose: &::rhododendron::LocalizedProposal<B, B::Hash, AuthorityId, LocalizedSignature>)
-	-> Result<(), Error>
-{
+-> Result<(), Error> {
 	if !authorities.contains(&propose.sender) {
 		return Err(ErrorKind::InvalidAuthority(propose.sender.into()).into());
 	}
 
-	let action_header = PrimitiveAction::ProposeHeader(propose.round_number as u32, propose.digest.clone());
-	let action_propose = PrimitiveAction::Propose(propose.round_number as u32, propose.proposal.clone());
+	let action_header = PrimitiveAction::ProposeHeader(propose.round_number as u32,
+				propose.digest.clone());
+	let action_propose = PrimitiveAction::Propose(propose.round_number as u32,
+				propose.proposal.clone());
 	check_action::<B>(action_header, parent_hash, &propose.digest_signature)?;
 	check_action::<B>(action_propose, parent_hash, &propose.full_signature)
 }
@@ -553,8 +568,7 @@ pub fn check_vote<B: Block>(
 	authorities: &[AuthorityId],
 	parent_hash: &B::Hash,
 	vote: &::rhododendron::LocalizedVote<B::Hash, AuthorityId, LocalizedSignature>)
-	-> Result<(), Error>
-{
+-> Result<(), Error> {
 	if !authorities.contains(&vote.sender) {
 		return Err(ErrorKind::InvalidAuthority(vote.sender.into()).into());
 	}
@@ -567,7 +581,11 @@ pub fn check_vote<B: Block>(
 	check_action::<B>(action, parent_hash, &vote.signature)
 }
 
-fn check_action<B: Block>(action: PrimitiveAction<B, B::Hash>, parent_hash: &B::Hash, sig: &LocalizedSignature) -> Result<(), Error> {
+fn check_action<B: Block>(
+	action: PrimitiveAction<B, B::Hash>,
+	parent_hash: &B::Hash,
+	sig: &LocalizedSignature)
+-> Result<(), Error> {
 	let primitive = PrimitiveMessage {
 		parent: parent_hash.clone(),
 		action,
@@ -582,7 +600,11 @@ fn check_action<B: Block>(action: PrimitiveAction<B, B::Hash>, parent_hash: &B::
 }
 
 /// Sign a BFT message with the given key.
-pub fn sign_message<B: Block + Clone>(message: Message<B>, key: &ed25519::Pair, parent_hash: B::Hash) -> LocalizedMessage<B> {
+pub fn sign_message<B: Block + Clone>(
+	message: Message<B>,
+	key: &ed25519::Pair,
+	parent_hash: B::Hash)
+-> LocalizedMessage<B> {
 	let signer = key.public();
 
 	let sign_action = |action: PrimitiveAction<B, B::Hash>| {
@@ -667,7 +689,8 @@ mod tests {
 		type SinkItem = Communication<TestBlock>;
 		type SinkError = E;
 
-		fn start_send(&mut self, _item: Communication<TestBlock>) -> ::futures::StartSend<Communication<TestBlock>, E> {
+		fn start_send(&mut self, _item: Communication<TestBlock>)
+			-> ::futures::StartSend<Communication<TestBlock>, E> {
 			Ok(::futures::AsyncSink::Ready)
 		}
 
@@ -685,9 +708,11 @@ mod tests {
 		type Output = Output<Error>;
 		type Error = Error;
 
-		fn init(&self, parent_header: &TestHeader, _authorities: &[AuthorityId], _sign_with: Arc<ed25519::Pair>)
-			-> Result<(DummyProposer, Self::Input, Self::Output), Error>
-		{
+		fn init(&self,
+			parent_header: &TestHeader,
+			_authorities: &[AuthorityId],
+			_sign_with: Arc<ed25519::Pair>)
+		-> Result<(DummyProposer, Self::Input, Self::Output), Error> {
 			Ok((DummyProposer(parent_header.number + 1), stream::empty(), Output(::std::marker::PhantomData)))
 		}
 	}
@@ -728,7 +753,11 @@ mod tests {
 		}
 	}
 
-	fn sign_vote(vote: ::rhododendron::Vote<H256>, key: &ed25519::Pair, parent_hash: H256) -> LocalizedSignature {
+	fn sign_vote(
+		vote: ::rhododendron::Vote<H256>,
+		key: &ed25519::Pair,
+		parent_hash: H256)
+	-> LocalizedSignature {
 		match sign_message::<TestBlock>(vote.into(), key, parent_hash) {
 			::rhododendron::LocalizedMessage::Vote(vote) => vote.signature,
 			_ => panic!("signing vote leads to signed vote"),
@@ -869,7 +898,8 @@ mod tests {
 			extrinsics: Default::default()
 		};
 
-		let proposal = sign_message(::rhododendron::Message::Propose(1, block.clone()), &Keyring::Alice.pair(), parent_hash);;
+		let prop = ::rhododendron::Message::Propose(1, block.clone());
+		let proposal = sign_message(prop, &Keyring::Alice.pair(), parent_hash);
 		if let ::rhododendron::LocalizedMessage::Propose(proposal) = proposal {
 			assert!(check_proposal(&authorities, &parent_hash, &proposal).is_ok());
 			let mut invalid_round = proposal.clone();
@@ -883,7 +913,8 @@ mod tests {
 		}
 
 		// Not an authority
-		let proposal = sign_message::<TestBlock>(::rhododendron::Message::Propose(1, block), &Keyring::Bob.pair(), parent_hash);;
+		let prop = ::rhododendron::Message::Propose(1, block);
+		let proposal = sign_message::<TestBlock>(prop, &Keyring::Bob.pair(), parent_hash);
 		if let ::rhododendron::LocalizedMessage::Propose(proposal) = proposal {
 			assert!(check_proposal(&authorities, &parent_hash, &proposal).is_err());
 		} else {
@@ -901,7 +932,10 @@ mod tests {
 			Keyring::Eve.to_raw_public().into(),
 		];
 
-		let vote = sign_message::<TestBlock>(::rhododendron::Message::Vote(::rhododendron::Vote::Prepare(1, hash)), &Keyring::Alice.pair(), parent_hash);;
+		let vote = sign_message::<TestBlock>(
+			::rhododendron::Message::Vote(::rhododendron::Vote::Prepare(1, hash)),
+			&Keyring::Alice.pair(),
+			parent_hash);
 		if let ::rhododendron::LocalizedMessage::Vote(vote) = vote {
 			assert!(check_vote::<TestBlock>(&authorities, &parent_hash, &vote).is_ok());
 			let mut invalid_sender = vote.clone();
@@ -912,7 +946,10 @@ mod tests {
 		}
 
 		// Not an authority
-		let vote = sign_message::<TestBlock>(::rhododendron::Message::Vote(::rhododendron::Vote::Prepare(1, hash)), &Keyring::Bob.pair(), parent_hash);;
+		let vote = sign_message::<TestBlock>(
+			::rhododendron::Message::Vote(::rhododendron::Vote::Prepare(1, hash)),
+			&Keyring::Bob.pair(),
+			parent_hash);
 		if let ::rhododendron::LocalizedMessage::Vote(vote) = vote {
 			assert!(check_vote::<TestBlock>(&authorities, &parent_hash, &vote).is_err());
 		} else {
